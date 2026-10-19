@@ -28,7 +28,18 @@ questions), every exercise here is a **full scenario**: schema → requirement �
 3. [Unpivoting Columns into Rows](#3-unpivoting-columns-into-rows)
 4. [Subqueries on Real Data](#4-subqueries-on-real-data)
 5. [Common Records Between Tables](#5-common-records-between-tables)
-6. [Full Mock Sessions (Timed, Mixed)](#6-full-mock-sessions-timed-mixed)
+
+**New: tee-time booking database (from other interviews)**
+
+6. [Window Functions and Gaps & Islands](#6-window-functions-and-gaps--islands)
+7. [Data Integrity and Constraints](#7-data-integrity-and-constraints)
+8. [Transactions and Concurrency](#8-transactions-and-concurrency)
+9. [Performance Tuning](#9-performance-tuning)
+10. [Time Zones, Bulk Loads and SQL Code Review](#10-time-zones-bulk-loads-and-sql-code-review)
+
+**Practice**
+
+11. [Full Mock Sessions (Timed, Mixed)](#11-full-mock-sessions-timed-mixed)
 
 ---
 
@@ -135,7 +146,95 @@ for the same question.
 
 ---
 
-## 6. Full Mock Sessions (Timed, Mixed)
+## New: Tee-Time Booking Database (sections 6–10)
+
+> These scenarios come from the SQL Server part of
+> [forte-live-coding-mock-plan.md](source-other-interviews/forte-live-coding-mock-plan.md#6-mock-d--sql-server)
+> and only cover topics that sections 1–5 don't (no more "max per group", joins or subquery drills).
+>
+> **Setup (once, ~5 min):** run the script in
+> [§1.4 SQL schema + seed](source-other-interviews/forte-live-coding-mock-plan.md#14-sql-schema--seed-run-in-sql).
+> It creates `Courses`, `TeeTimes`, `Golfers`, `Bookings` and `Payments` with about 20k tee times
+> and 60k bookings. The seed is random and **deliberately broken**: some tee times are overbooked,
+> 50 `BookedPlayers` counters are wrong, and there are no indexes beyond the primary keys and no
+> check constraints. You fix those in the exercises.
+>
+> **Business rules used below:** a tee time holds `Capacity` players (4); the sum of players in
+> non-cancelled bookings must never exceed it; a `Held` booking expires after 10 minutes.
+>
+> Turn on **Include Actual Execution Plan** and `SET STATISTICS IO, TIME ON` for every query.
+> **Answer** links go to a written answer or hint; **Source** links go to the original exercise
+> (not every exercise there has a full written answer, so check yourself by running it).
+
+---
+
+## 6. Window Functions and Gaps & Islands
+
+**Theme:** comparing a row with its neighbours and finding consecutive runs, without self-joins or cursors.
+
+| # | Scenario | Difficulty | Suggested time | Answer |
+|---|---|---|---|---|
+| P6.1 | **Running revenue.** Using `Payments` with `Status = 'Captured'`, show for each course and day the day's revenue and a **running total** for that course. Make sure two payments on the same day don't break the running total (`ROWS` vs `RANGE`). | 🟡 Medium | 15 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d2--window-functions-25-min-) |
+| P6.2 | **Gap between bookings.** For each booking, show the golfer, the tee time start, the golfer's **previous** tee time start, and the gap in days. The first booking of each golfer shows `NULL` (or `0` — say which and why). | 🟡 Medium | 10 min | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+| P6.3 | **Suspicious double bookings.** Find golfers with two non-cancelled bookings whose tee times are **within 30 minutes** of each other on the same day. Solve it with `LAG`, then with a self-join, and compare the plans. | 🔴 Hard | 20 min | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+| P6.4 | **Free time windows (gaps & islands).** For one course on one day, return each run of **consecutive** tee times (every 10 min) that has at least 2 free spots: start, end and number of slots, e.g. `08:00–08:40, 5 slots`. | 🔴 Hard | 30 min | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+
+**Harder variant (🔴 Hard, +10 min):** in P6.4, only return windows of at least 3 slots, and show
+the times in the course's **local** time (see P10.1 for the time zone trap).
+
+---
+
+## 7. Data Integrity and Constraints
+
+**Theme:** find bad data, fix it set-based, and then add constraints so it can't happen again.
+
+| # | Scenario | Difficulty | Suggested time | Answer |
+|---|---|---|---|---|
+| P7.1 | **Overbookings and wrong counters.** (a) Find tee times where the sum of non-cancelled players is **greater than** `Capacity`. (b) Find tee times where `BookedPlayers` doesn't match that sum — include tee times with **no** active bookings but a non-zero counter. | 🟡 Medium | 15 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d3--data-integrity-hunt-20-min-) |
+| P7.2 | **Fix the counters.** Correct every wrong `BookedPlayers` with a **single** set-based `UPDATE ... FROM` (no cursor, no loop). Run P7.1(b) again: it must return 0 rows. | 🟡 Medium | 10 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d3--data-integrity-hunt-20-min-) |
+| P7.3 | **Add the guard.** Add `CHECK (BookedPlayers <= Capacity)`. First try it on the unfixed data and read the error; then try `WITH NOCHECK` and query `sys.check_constraints.is_not_trusted`; finally make it trusted. Explain why `WITH NOCHECK` is risky. | 🟡 Medium | 15 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| P7.4 | **Idempotency key.** `Bookings.IdempotencyKey` is nullable but must be unique when set. Show that a `UNIQUE` constraint fails on the second `NULL`, then create a **filtered unique index** and prove that many `NULL`s are allowed but a repeated key is rejected. | 🟡 Medium | 10 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d5--index-design-from-a-query-25-min-) |
+
+---
+
+## 8. Transactions and Concurrency
+
+**Theme:** two golfers try to book the last spot at the same moment. You need two query windows (two sessions) for most of these.
+
+| # | Scenario | Difficulty | Suggested time | Answer |
+|---|---|---|---|---|
+| P8.1 | **Atomic booking procedure.** Write `usp_BookTeeTime @TeeTimeId, @GolferId, @Players`: increment `BookedPlayers` only if capacity allows **in one statement**, check `@@ROWCOUNT`, insert the `Bookings` row in the same transaction, `THROW` a clear error when full, and use `SET NOCOUNT ON`, `SET XACT_ABORT ON` and `TRY/CATCH`. | 🔴 Hard | 20 min | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+| P8.2 | **Prove the race.** Write a naive version (read `BookedPlayers` into a variable, `IF` there's room, `WAITFOR DELAY '00:00:05'`, then `UPDATE`). Run it in two windows for the last spot and get an overbooking. Run P8.1 the same way and show it doesn't overbook. | 🔴 Hard | 20 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| P8.3 | **Expire holds.** In one transaction, set every `Held` booking past `HoldExpiresUtc` to `Cancelled` and subtract its players from `TeeTimes.BookedPlayers`. Set-based only; use `OUTPUT` to capture the affected bookings. What if two jobs run it at the same time? | 🟡 Medium | 15 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#13-domain-model-use-in-net-sql-and-react) |
+| P8.4 | **Blocking → RCSI → SNAPSHOT.** Session 1: `BEGIN TRAN; UPDATE TeeTimes SET Price = Price + 1 WHERE TeeTimeId = 1;` (don't commit). Session 2: read that row and watch it block. Turn on `READ_COMMITTED_SNAPSHOT` and repeat. Then use `SNAPSHOT` isolation in both sessions and produce an **update conflict**. Explain row versioning and its tempdb cost. | 🔴 Hard | 25 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d8--isolation-levels--blocking-25-min) |
+| P8.5 | **Deadlock.** Make a deadlock with two sessions that update `TeeTimes` and `Bookings` in **opposite order**. Find the deadlock graph in the `system_health` Extended Events session, name the victim and the resources, then fix it with a consistent access order. | 🔴 Hard | 20 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d9--deadlock-20-min) |
+
+---
+
+## 9. Performance Tuning
+
+**Theme:** measure first (logical reads + plan), change one thing, measure again.
+
+| # | Scenario | Difficulty | Suggested time | Answer |
+|---|---|---|---|---|
+| P9.1 | **Index from a query.** The tee sheet query filters `TeeTimes` by `CourseId`, a UTC range on `StartUtc`, and `Capacity - BookedPlayers >= @minSpots`, ordered by `StartUtc`. Record reads and the plan, design the index (key order + `INCLUDE`), and measure again. Also index `Bookings(TeeTimeId)` and decide which FK columns need an index. | 🔴 Hard | 25 min | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+| P9.2 | **Sargability drill.** Rewrite so each one can seek: `WHERE CAST(StartUtc AS DATE) = '2026-11-10'` and `WHERE ISNULL(HoldExpiresUtc, '9999-12-31') < SYSUTCDATETIME()`. Compare the plans before and after. *(`YEAR()`, leading `%` and `N''` literals are already in [mock-interview-questions.md §8](mock-interview-questions.md#8-query-optimization).)* | 🟢 Easy | 10 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d6--sargability-15-min) |
+| P9.3 | **Parameter sniffing.** Create a procedure that returns bookings for `@CourseId`. Insert many extra bookings for one course so it is huge and the others are tiny. Run it for a tiny course first, then the huge one, and compare plans. Try `OPTION (RECOMPILE)`, `OPTIMIZE FOR`, and splitting into two procedures; explain the trade-offs. | 🔴 Hard | 20 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d7--parameter-sniffing-20-min) |
+| P9.4 | **Pagination.** List tee times ordered by `StartUtc, TeeTimeId`. Compare logical reads for `OFFSET/FETCH` page 1 vs page 2000, then write the **keyset** version and compare again. Why must `TeeTimeId` be in the `ORDER BY`? | 🟡 Medium | 15 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d10--pagination-15-min) |
+
+---
+
+## 10. Time Zones, Bulk Loads and SQL Code Review
+
+| # | Scenario | Difficulty | Suggested time | Answer |
+|---|---|---|---|---|
+| P10.1 | **Utilization per local day.** Per course and per **course-local** date, show tee times offered, players booked (non-cancelled) and utilization % (booked / capacity), ordered by utilization desc. Traps: `AT TIME ZONE` needs Windows names but `Courses.TimeZoneId` holds IANA names (`America/Chicago`); and integer division returns `0`. | 🟡 Medium | 15 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d1--joins--aggregation-15-min--warm-up) |
+| P10.2 | **Bulk insert.** Insert 500 tee times for a new course in **one** call: first from a JSON array parameter with `OPENJSON ... WITH (...)`, then with a table-valued parameter (`CREATE TYPE ... AS TABLE`). Compare with 500 single-row `INSERT`s (time and log usage). | 🟡 Medium | 15 min | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d12--bulk-insert-15-min) |
+| P10.3 | **Review a SQL pull request.** Review the `GetCourseBookings` procedure (dynamic SQL built by concatenating `@CourseName`, comma joins, `SELECT *`, `YEAR(t.StartUtc) = YEAR(GETDATE())`, no paging). List every issue with its impact, then rewrite it. Target: 7+ issues. | 🔴 Hard | 10 min | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#123-e3--sql-pr-issues) |
+
+---
+
+## 11. Full Mock Sessions (Timed, Mixed)
 
 Simulate a real 45–60 minute technical screen: pick one session, set a single timer for the
 whole block, and don't look at any answer until time is up or you've submitted every query.
@@ -164,9 +263,29 @@ whole block, and don't look at any answer until time is up or you've submitted e
 | 1 | P3.1 | 🟡 Medium | 20 min |
 | 2 | P3.2 | 🟡 Medium | 20 min |
 
+### Session D — SQL Server concurrency (60 min)
+
+Two query windows open, tee-time database loaded.
+
+| Order | Exercise | Difficulty | Time budget |
+|---|---|---|---|
+| 1 | P8.1 | 🔴 Hard | 20 min |
+| 2 | P8.2 | 🔴 Hard | 15 min |
+| 3 | P8.5 | 🔴 Hard | 20 min |
+| 4 | P7.3 (explain only, no coding) | 🟡 Medium | 5 min |
+
+### Session E — Performance and data quality (60 min)
+
+| Order | Exercise | Difficulty | Time budget |
+|---|---|---|---|
+| 1 | P7.1 + P7.2 | 🟡 Medium | 15 min |
+| 2 | P9.1 | 🔴 Hard | 20 min |
+| 3 | P6.4 | 🔴 Hard | 15 min |
+| 4 | P10.3 | 🔴 Hard | 10 min |
+
 ### Self-evaluation after any session
 
 - [ ] My query ran without errors on the sample data in the Answer link.
 - [ ] I finished inside the time budget (note how far over if not).
-- [ ] I could name the edge case my query would miss (ties, `NULL`s, orphans, duplicates).
+- [ ] I could name the edge case my query would miss (ties, `NULL`s, orphans, duplicates, two sessions at once, time zones/DST).
 - [ ] I could explain my query's approach out loud in under a minute.

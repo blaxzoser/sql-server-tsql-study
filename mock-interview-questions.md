@@ -4,7 +4,7 @@ Practice questions for a SQL / T-SQL interview, **without answers**.
 Try each one yourself first, then click **Answer** to check it in [`source-database/`](source-database/).
 
 **Difficulty:** 🟢 Easy · 🟡 Medium · 🔴 Hard
-**Total:** 117 free-response questions + 40 multiple-choice
+**Total:** 177 free-response questions + 53 multiple-choice
 
 ---
 
@@ -18,8 +18,22 @@ Try each one yourself first, then click **Answer** to check it in [`source-datab
 6. [Duplicates and Max per Group](#6-duplicates-and-max-per-group)
 7. [Recursive CTEs: Employee Hierarchy](#7-recursive-ctes-employee-hierarchy)
 8. [Query Optimization](#8-query-optimization)
-9. [Mock Interview Sets (Timed)](#9-mock-interview-sets-timed)
-10. [Multiple-Choice Quiz](#10-multiple-choice-quiz)
+
+**New topics from other interviews**
+
+9. [Window Functions: Running Totals, LAG/LEAD, Gaps and Islands](#9-window-functions-running-totals-laglead-gaps-and-islands)
+10. [Transactions, Error Handling and Concurrency](#10-transactions-error-handling-and-concurrency)
+11. [Constraints and Data Integrity](#11-constraints-and-data-integrity)
+12. [Index Design and Storage](#12-index-design-and-storage)
+13. [Query Tuning: Sargability, Parameter Sniffing and Pagination](#13-query-tuning-sargability-parameter-sniffing-and-pagination)
+14. [Isolation Levels and Deadlocks](#14-isolation-levels-and-deadlocks)
+15. [Dates, Time Zones and Numeric Traps](#15-dates-time-zones-and-numeric-traps)
+16. [Bulk Loads, MERGE, Transaction Log and SQL Code Review](#16-bulk-loads-merge-transaction-log-and-sql-code-review)
+
+**Practice**
+
+17. [Mock Interview Sets (Timed)](#17-mock-interview-sets-timed)
+18. [Multiple-Choice Quiz](#18-multiple-choice-quiz)
 
 ---
 
@@ -269,7 +283,210 @@ Source: [sql-server-query-optimization-guide.md](source-database/sql-server-quer
 
 ---
 
-## 9. Mock Interview Sets (Timed)
+## New topics from other interviews (sections 9–16)
+
+> These sections come from the SQL Server part of
+> [forte-live-coding-mock-plan.md](source-other-interviews/forte-live-coding-mock-plan.md#6-mock-d--sql-server).
+> They only cover topics that sections 1–8 don't already ask (no repeats of `GROUP BY`, joins,
+> `LIKE`, covering indexes, `YEAR()` sargability, blocking vs deadlock, etc.).
+> All of them use the **tee-time booking schema** (`Courses`, `TeeTimes`, `Golfers`, `Bookings`, `Payments`):
+> copy the setup script from [§1.4 SQL schema + seed](source-other-interviews/forte-live-coding-mock-plan.md#14-sql-schema--seed-run-in-sql).
+>
+> **Answer** links go to a written answer. **Source** links go to the exercise or hint that the
+> question comes from; that file doesn't have a full written answer for every question, so check
+> those yourself by running the SQL.
+
+---
+
+## 9. Window Functions: Running Totals, LAG/LEAD, Gaps and Islands
+
+Source: [Mock D — D2, D3, D11](source-other-interviews/forte-live-coding-mock-plan.md#6-mock-d--sql-server)
+
+### Concepts
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 9.1 | 🟡 | What do `LAG` and `LEAD` return? What are their second and third arguments for? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d2--window-functions-25-min-) |
+| ⬜ | 9.2 | 🟡 | How do you write a running total with `SUM() OVER (...)`? What changes when you add `ORDER BY` inside `OVER`? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d2--window-functions-25-min-) |
+| ⬜ | 9.3 | 🔴 | `ROWS` vs `RANGE` in a window frame: what is the default frame when `OVER` has an `ORDER BY`, and why can it give a wrong running total when two rows share the same date? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d2--window-functions-25-min-) |
+| ⬜ | 9.4 | 🔴 | What is the "gaps and islands" problem? Explain the `ROW_NUMBER` difference technique and why the group key stays the same inside one island. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+
+### Write the query
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 9.5 | 🟡 | Show the running total of **captured** payment revenue per course per day. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d2--window-functions-25-min-) |
+| ⬜ | 9.6 | 🟡 | For each booking, show the golfer's **previous** booking date and the gap in days. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+| ⬜ | 9.7 | 🔴 | Find golfers with two non-cancelled bookings **within 30 minutes** of each other on the same day. Solve it with `LAG`, then again with a self-join. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+| ⬜ | 9.8 | 🔴 | For one course on one day, find **consecutive runs** of tee times with at least 2 free spots, e.g. `08:00–08:40, 5 slots`. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d11--gaps--islands-free-time-windows-30-min--stretch) |
+
+---
+
+## 10. Transactions, Error Handling and Concurrency
+
+Source: [Mock D — D4](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-)
+
+### Concepts
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 10.1 | 🟢 | What does `SET NOCOUNT ON` do, and why put it at the top of a stored procedure? | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#123-e3--sql-pr-issues) |
+| ⬜ | 10.2 | 🟡 | What does `SET XACT_ABORT ON` do? What can go wrong in a transaction without it? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| ⬜ | 10.3 | 🟡 | `TRY/CATCH` in T-SQL: which errors does it **not** catch? What is the difference between `THROW` and `RAISERROR`? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| ⬜ | 10.4 | 🟡 | Why is "read, check, then write" a race condition? Explain it with two sessions booking the last spot on a tee time. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| ⬜ | 10.5 | 🔴 | Name three T-SQL ways to stop overbooking under concurrency (atomic conditional `UPDATE` + `@@ROWCOUNT`, `UPDLOCK`/`HOLDLOCK` hints in a transaction, `SERIALIZABLE`). What does each one cost? | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+| ⬜ | 10.6 | 🟡 | What is a `ROWVERSION` column? How do you use it for optimistic concurrency in plain T-SQL? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#14-sql-schema--seed-run-in-sql) |
+| ⬜ | 10.7 | 🟡 | Why should transactions be short? What happens to other sessions if a transaction stays open while the caller waits on something slow? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d8--isolation-levels--blocking-25-min) |
+
+### Write the code
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 10.8 | 🔴 | Write `usp_BookTeeTime @TeeTimeId, @GolferId, @Players`: increment `BookedPlayers` **only if** capacity allows, in one statement; check `@@ROWCOUNT`; insert the booking in the same transaction; `THROW` when full; use `SET XACT_ABORT ON` and `TRY/CATCH`. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| ⬜ | 10.9 | 🔴 | Prove the race: run a naive read-check-write version in two query windows with `WAITFOR DELAY` inside the transaction and get an overbooking. Then show that your 10.8 version prevents it. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| ⬜ | 10.10 | 🟡 | Expire holds in one transaction: cancel every `Held` booking past `HoldExpiresUtc` **and** give its players back to `TeeTimes.BookedPlayers`, set-based (no cursor). Hint: `OUTPUT` into a table variable. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#13-domain-model-use-in-net-sql-and-react) |
+
+---
+
+## 11. Constraints and Data Integrity
+
+Source: [Mock D — D3, D4, D5](source-other-interviews/forte-live-coding-mock-plan.md#d3--data-integrity-hunt-20-min-)
+
+### Concepts
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 11.1 | 🟢 | What is a `CHECK` constraint? Write one that enforces `BookedPlayers <= Capacity`. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| ⬜ | 11.2 | 🔴 | You add a `CHECK` constraint to a table that already has bad rows. What happens? What does `WITH NOCHECK` do, what is an **untrusted** constraint (`is_not_trusted`), and why does the optimizer care? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+| ⬜ | 11.3 | 🟡 | A `UNIQUE` constraint on a nullable column: how many `NULL`s does SQL Server allow? How do you allow many `NULL`s but keep the non-null values unique? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d5--index-design-from-a-query-25-min-) |
+| ⬜ | 11.4 | 🟡 | A denormalized counter (`BookedPlayers`) vs computing `SUM(Players)` when you read: what are the trade-offs, and how does the counter drift out of sync? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d3--data-integrity-hunt-20-min-) |
+| ⬜ | 11.5 | 🟡 | Soft delete (`Status = 'Cancelled'`) vs hard delete: how does each affect queries, unique constraints and indexes? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#13-domain-model-use-in-net-sql-and-react) |
+
+### Write the query
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 11.6 | 🟡 | Find tee times where `BookedPlayers` doesn't match the real sum of non-cancelled players. Make sure tee times with **no** active bookings but a non-zero counter are included. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d3--data-integrity-hunt-20-min-) |
+| ⬜ | 11.7 | 🟡 | Fix every wrong counter with **one** set-based `UPDATE ... FROM`. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d3--data-integrity-hunt-20-min-) |
+| ⬜ | 11.8 | 🟡 | Add `CHECK (BookedPlayers <= Capacity)` before and after fixing the data. What happens each time? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-) |
+
+---
+
+## 12. Index Design and Storage
+
+Source: [Mock D — D5 and theory](source-other-interviews/forte-live-coding-mock-plan.md#d5--index-design-from-a-query-25-min-)
+
+### Concepts
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 12.1 | 🟢 | Clustered vs nonclustered index: how many of each can a table have, and what does the clustered index decide? | [Answer](source-database/sql-server-query-optimization-guide.md#index-types) |
+| ⬜ | 12.2 | 🟡 | What is a **heap**? When is it acceptable, and what problems does it cause (RID lookups, forwarded records)? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d--theory-rapid-fire) |
+| ⬜ | 12.3 | 🟡 | In a composite index, why do equality columns go first and the range/sort column second? | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises) |
+| ⬜ | 12.4 | 🟡 | What is a **filtered index**? Give two use cases from the booking schema. | [Answer](source-database/sql-server-query-optimization-guide.md#index-types) |
+| ⬜ | 12.5 | 🟡 | Should you index foreign key columns? Does SQL Server create those indexes for you? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d5--index-design-from-a-query-25-min-) |
+| ⬜ | 12.6 | 🔴 | Fill factor, page splits and fragmentation: what are they, and when do you `REORGANIZE` vs `REBUILD`? | [Answer](source-database/sql-server-query-optimization-guide.md#index-maintenance) |
+| ⬜ | 12.7 | 🔴 | Columnstore vs rowstore indexes: when would you use a columnstore? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d--theory-rapid-fire) |
+
+### Write the code
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 12.8 | 🔴 | The tee sheet query filters `TeeTimes` by `CourseId` + a UTC range + free spots, ordered by `StartUtc`. Measure logical reads, design the index, measure again, and explain the key order and the key lookup that disappears. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d5--index-design-from-a-query-25-min-) |
+
+---
+
+## 13. Query Tuning: Sargability, Parameter Sniffing and Pagination
+
+Source: [Mock D — D6, D7, D10](source-other-interviews/forte-live-coding-mock-plan.md#d6--sargability-15-min)
+
+### Concepts
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 13.1 | 🟡 | Is `WHERE CAST(StartUtc AS DATE) = '2026-11-10'` sargable in SQL Server? Why is a half-open range still the safer habit? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d6--sargability-15-min) |
+| ⬜ | 13.2 | 🟡 | Rewrite `WHERE ISNULL(HoldExpiresUtc, '9999-12-31') < SYSUTCDATETIME()` so it can seek. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d6--sargability-15-min) |
+| ⬜ | 13.3 | 🔴 | What is **parameter sniffing**? Show three fixes (`OPTION (RECOMPILE)`, `OPTIMIZE FOR`, splitting procedures) and their trade-offs. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d7--parameter-sniffing-20-min) |
+| ⬜ | 13.4 | 🟡 | `OFFSET/FETCH` vs keyset pagination: why is page 2000 slow with `OFFSET`, and why must the `ORDER BY` end with a unique tiebreaker? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d10--pagination-15-min) |
+| ⬜ | 13.5 | 🟡 | Besides Query Store, how do you find the most expensive queries with DMVs (`sys.dm_exec_query_stats`, `sys.dm_exec_sql_text`)? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d--theory-rapid-fire) |
+
+### Write the query
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 13.6 | 🔴 | Create a procedure that searches bookings by `@CourseId`. Make one course huge and the others tiny, show the plan reuse problem, then try each fix from 13.3. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d7--parameter-sniffing-20-min) |
+| ⬜ | 13.7 | 🟡 | Compare logical reads for `OFFSET/FETCH` page 1 vs page 2000, then write the keyset version: `WHERE (StartUtc > @s OR (StartUtc = @s AND TeeTimeId > @id))`. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d10--pagination-15-min) |
+
+---
+
+## 14. Isolation Levels and Deadlocks
+
+Source: [Mock D — D8, D9](source-other-interviews/forte-live-coding-mock-plan.md#d8--isolation-levels--blocking-25-min)
+
+### Concepts
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 14.1 | 🟡 | List SQL Server's isolation levels and which read problems each one prevents (dirty read, non-repeatable read, phantom). | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d8--isolation-levels--blocking-25-min) |
+| ⬜ | 14.2 | 🔴 | RCSI vs `SNAPSHOT`: statement-level vs transaction-level consistency. What is an **update conflict**, and when do you get one? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d8--isolation-levels--blocking-25-min) |
+| ⬜ | 14.3 | 🟡 | Where are row versions stored, and what does turning on RCSI cost? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d8--isolation-levels--blocking-25-min) |
+| ⬜ | 14.4 | 🔴 | Where do you find a deadlock graph after it happened (`system_health` session), and what do you read in it (victim, resources, lock modes, statements)? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d9--deadlock-20-min) |
+
+### Write the code
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 14.5 | 🔴 | Session 1 updates a tee time's price without committing; session 2 reads it and blocks. Turn on `READ_COMMITTED_SNAPSHOT` and repeat. Then use `SNAPSHOT` in both sessions and produce an update conflict. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d8--isolation-levels--blocking-25-min) |
+| ⬜ | 14.6 | 🔴 | Make a deadlock with two sessions that update `TeeTimes` and `Bookings` in **opposite order**, find the graph, and fix it. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d9--deadlock-20-min) |
+
+---
+
+## 15. Dates, Time Zones and Numeric Traps
+
+Source: [Mock D — D1, D6, E3](source-other-interviews/forte-live-coding-mock-plan.md#d1--joins--aggregation-15-min--warm-up)
+
+### Concepts
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 15.1 | 🟢 | `DATETIME` vs `DATETIME2` vs `DATETIMEOFFSET`: precision, range and storage. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#14-sql-schema--seed-run-in-sql) |
+| ⬜ | 15.2 | 🟢 | `GETDATE()` vs `SYSUTCDATETIME()`: which one do you use with UTC columns, and why store times in UTC? | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#123-e3--sql-pr-issues) |
+| ⬜ | 15.3 | 🟡 | What does `AT TIME ZONE` do, and how does it handle DST? Which time zone names does it accept: would `'America/Chicago'` work? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d1--joins--aggregation-15-min--warm-up) |
+| ⬜ | 15.4 | 🟡 | You must filter a UTC column by a course-**local** date (10 Nov in London). How do you turn that date into a sargable UTC range? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d6--sargability-15-min) |
+| ⬜ | 15.5 | 🟡 | `SELECT SUM(BookedPlayers) / SUM(Capacity)` returns `0`. Why, and how do you get a correct percentage? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d1--joins--aggregation-15-min--warm-up) |
+
+### Write the query
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 15.6 | 🟡 | Per course, per **local** date: tee times offered, players booked (non-cancelled) and utilization % (booked / capacity), ordered by utilization desc. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d1--joins--aggregation-15-min--warm-up) |
+
+---
+
+## 16. Bulk Loads, MERGE, Transaction Log and SQL Code Review
+
+Source: [Mock D — D12, theory, E3](source-other-interviews/forte-live-coding-mock-plan.md#d12--bulk-insert-15-min)
+
+### Concepts
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 16.1 | 🟡 | What is a **table-valued parameter**? How do you declare one and pass it to a procedure? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d12--bulk-insert-15-min) |
+| ⬜ | 16.2 | 🟡 | `STRING_SPLIT` vs `OPENJSON` for passing a list: which keeps the order, and which handles several columns per item? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d12--bulk-insert-15-min) |
+| ⬜ | 16.3 | 🟡 | How do you generate N rows without a loop (a tally/numbers CTE, `GENERATE_SERIES` in SQL Server 2022)? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#14-sql-schema--seed-run-in-sql) |
+| ⬜ | 16.4 | 🔴 | What are the known caveats of `MERGE` (concurrency, the semicolon, multiple matches, triggers)? When would you use `UPDATE` + `INSERT` instead? | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d--theory-rapid-fire) |
+| ⬜ | 16.5 | 🔴 | Transaction log basics: what gets logged, what the recovery models change, and why one huge `DELETE` can fill the log. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d--theory-rapid-fire) |
+
+### Write / review the code
+
+| Done | # | Level | Question | Answer |
+|---|---|---|---|---|
+| ⬜ | 16.6 | 🟡 | Insert 500 tee times for a new course in **one** call: first from a JSON array with `OPENJSON`, then with a table-valued parameter. | [Source](source-other-interviews/forte-live-coding-mock-plan.md#d12--bulk-insert-15-min) |
+| ⬜ | 16.7 | 🔴 | Review the `GetCourseBookings` procedure (dynamic SQL, comma joins, `SELECT *`, `YEAR()`): list every issue, then rewrite it. | [Answer](source-other-interviews/forte-live-coding-mock-plan.md#123-e3--sql-pr-issues) |
+
+---
+
+## 17. Mock Interview Sets (Timed)
 
 Use these sets to simulate a full interview. Set a timer and don't open answers until the end.
 
@@ -285,6 +502,10 @@ Use these sets to simulate a full interview. Set a timer and don't open answers 
 
 1.10 · 3.10 · 4.12 · 6.8 · 6.13 · 7.6 · 8.3 · 8.5 · 8.6 · 8.8 · 8.11 · 8.13
 
+### Set D: Senior SQL Server deep dive (45 min)
+
+9.4 · 9.7 · 10.5 · 10.8 · 11.2 · 11.3 · 12.3 · 13.3 · 13.4 · 14.2 · 15.3 · 15.5 · 16.4 · 16.7
+
 ### Self-evaluation after each set
 
 - [ ] I gave a definition **and** an example for each concept question.
@@ -294,9 +515,9 @@ Use these sets to simulate a full interview. Set a timer and don't open answers 
 
 ---
 
-## 10. Multiple-Choice Quiz
+## 18. Multiple-Choice Quiz
 
-40 multiple-choice questions pulled from the topics above. Pick an option, then expand
+53 multiple-choice questions pulled from the topics above. Pick an option, then expand
 **Show answer** to check yourself — the correct letter is hidden so it doesn't spoil the attempt.
 
 ### Pattern Matching (LIKE)
@@ -857,4 +1078,186 @@ D) The `OPTION (MAXRECURSION)` clause
 <details><summary>Show answer</summary>
 
 **B)** — the anchor member is the base case (e.g. employees with no manager); the recursive member then joins each new level back to it. See [sql-employee-hierarchy-exercise.md](source-database/sql-employee-hierarchy-exercise.md#-solution).
+</details>
+
+### Window Functions and Gaps and Islands
+
+**MC41.** `LAG(StartUtc) OVER (PARTITION BY GolferId ORDER BY StartUtc)` on a golfer's **first** booking returns:
+
+A) The same row's `StartUtc`
+B) `NULL`, unless you pass a default as the third argument
+C) An error, because there is no previous row
+D) The last booking of the previous golfer
+
+<details><summary>Show answer</summary>
+
+**B) `NULL`** — `LAG(col, offset, default)` returns the default (or `NULL` if you don't give one) when there is no row at that offset inside the partition. `PARTITION BY` stops it from reading another golfer's row. See [D2 — Window functions](source-other-interviews/forte-live-coding-mock-plan.md#d2--window-functions-25-min-).
+</details>
+
+---
+
+**MC42.** `SUM(Amount) OVER (PARTITION BY CourseId ORDER BY PayDate)` has no explicit frame. Which frame does SQL Server use?
+
+A) `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
+B) `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+C) `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`
+D) Only the current row
+
+<details><summary>Show answer</summary>
+
+**C) `RANGE ... CURRENT ROW`** — so rows that share the same `PayDate` all get the same total (the sum includes all their "peers"). Write `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` when you want a row-by-row running total; it is also usually faster. See [D2 — Window functions](source-other-interviews/forte-live-coding-mock-plan.md#d2--window-functions-25-min-).
+</details>
+
+---
+
+**MC43.** To group consecutive free tee times into "islands", which expression gives the same value for every row in one island?
+
+A) `ROW_NUMBER() OVER (ORDER BY StartUtc)`
+B) `DATEADD(MINUTE, -10 * ROW_NUMBER() OVER (ORDER BY StartUtc), StartUtc)` (slots every 10 min)
+C) `COUNT(*) OVER ()`
+D) `LAG(StartUtc) OVER (ORDER BY StartUtc)`
+
+<details><summary>Show answer</summary>
+
+**B)** — inside an unbroken run, `StartUtc` and the row number both go up by one step, so their difference stays constant. A gap changes the difference, which starts a new island. Then `GROUP BY` that key and take `MIN`/`MAX`/`COUNT`. See [hints](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises).
+</details>
+
+### Transactions, Constraints and Concurrency
+
+**MC44.** What does `SET XACT_ABORT ON` change inside a transaction?
+
+A) Nothing, it only affects `SELECT` statements
+B) Most run-time errors roll back the **whole** transaction and stop the batch, instead of only failing the one statement
+C) It makes every statement auto-commit
+D) It turns off `TRY/CATCH`
+
+<details><summary>Show answer</summary>
+
+**B)** — without it, many errors (for example a constraint violation) only fail that statement and the transaction stays open with half the work done. With it, the transaction is rolled back. See [D4 — Atomic booking statement](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-).
+</details>
+
+---
+
+**MC45.** Which statement safely books 2 players without overbooking, even with many sessions at once?
+
+A) `SELECT @booked = BookedPlayers ...;` then `IF @booked + 2 <= 4 UPDATE ...`
+B) `UPDATE TeeTimes SET BookedPlayers = BookedPlayers + 2 WHERE TeeTimeId = @id AND BookedPlayers + 2 <= Capacity;` then check `@@ROWCOUNT`
+C) `SELECT ... WITH (NOLOCK)` then `UPDATE`
+D) `UPDATE TeeTimes SET BookedPlayers = BookedPlayers + 2 WHERE TeeTimeId = @id;`
+
+<details><summary>Show answer</summary>
+
+**B)** — the check and the write happen in one atomic statement. `@@ROWCOUNT = 0` means full (or the tee time doesn't exist). Option A is the read-check-write race; C makes it worse; D has no check at all. See [hints](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises).
+</details>
+
+---
+
+**MC46.** `IdempotencyKey` is nullable and must be unique when it has a value. What do you create?
+
+A) A `UNIQUE` constraint on `IdempotencyKey`
+B) A filtered unique index: `CREATE UNIQUE INDEX ... ON Bookings(IdempotencyKey) WHERE IdempotencyKey IS NOT NULL`
+C) A `CHECK (IdempotencyKey IS NOT NULL)` constraint
+D) Nothing, SQL Server ignores `NULL`s in unique constraints
+
+<details><summary>Show answer</summary>
+
+**B)** — a SQL Server `UNIQUE` constraint treats `NULL` as a value, so it allows only **one** `NULL` row. The filtered index ignores `NULL`s and keeps the real keys unique. See [D5 — Index design](source-other-interviews/forte-live-coding-mock-plan.md#d5--index-design-from-a-query-25-min-).
+</details>
+
+---
+
+**MC47.** You run `ALTER TABLE TeeTimes WITH NOCHECK ADD CONSTRAINT CK_Cap CHECK (BookedPlayers <= Capacity);` on a table with overbooked rows. What happens?
+
+A) The statement fails
+B) The bad rows are deleted
+C) The constraint is created, existing rows aren't checked, and it is marked **untrusted** (`is_not_trusted = 1`)
+D) The bad rows are fixed automatically
+
+<details><summary>Show answer</summary>
+
+**C)** — new and updated rows are checked, but old bad rows stay. Because the constraint is untrusted, the optimizer can't rely on it to simplify plans. Fix the data, then run `WITH CHECK CHECK CONSTRAINT` to make it trusted. See [D4](source-other-interviews/forte-live-coding-mock-plan.md#d4--atomic-booking-statement-20-min-).
+</details>
+
+### Indexing, Tuning and Isolation
+
+**MC48.** Best index for `WHERE CourseId = @c AND StartUtc >= @from AND StartUtc < @to ORDER BY StartUtc`?
+
+A) `(StartUtc, CourseId)`
+B) `(CourseId, StartUtc)`
+C) `(CourseId) INCLUDE (StartUtc)`
+D) Two separate indexes, one on each column
+
+<details><summary>Show answer</summary>
+
+**B)** — equality column first, then the range/sort column. The seek goes straight to one course and reads its times already in order, so no sort is needed. With `INCLUDE (StartUtc)` the range can't be part of the seek. See [hints](source-other-interviews/forte-live-coding-mock-plan.md#124-hints-for-the-tricky-exercises).
+</details>
+
+---
+
+**MC49.** A procedure is fast for most courses but very slow for one huge course, and recompiling it "fixes" it for a while. The most likely cause is:
+
+A) Parameter sniffing: the cached plan was built for the first parameter value and reused for very different ones
+B) A missing primary key
+C) `SET NOCOUNT ON`
+D) The tempdb is full
+
+<details><summary>Show answer</summary>
+
+**A)** — a plan good for a tiny course (seek + nested loops) can be terrible for a huge one, and the other way round. Fixes: `OPTION (RECOMPILE)`, `OPTIMIZE FOR`, or separate procedures. See [D7 — Parameter sniffing](source-other-interviews/forte-live-coding-mock-plan.md#d7--parameter-sniffing-20-min).
+</details>
+
+---
+
+**MC50.** Why does `ORDER BY StartUtc, TeeTimeId OFFSET 40000 ROWS FETCH NEXT 20 ROWS ONLY` get slower on deep pages?
+
+A) `OFFSET` is not indexed by design and always does a table scan
+B) SQL Server still has to read and throw away all 40,000 skipped rows
+C) `FETCH NEXT` locks the whole table
+D) It doesn't, every page costs the same
+
+<details><summary>Show answer</summary>
+
+**B)** — the cost grows with the page number. Keyset pagination (`WHERE (StartUtc > @s OR (StartUtc = @s AND TeeTimeId > @id))`) seeks straight to the next page. See [D10 — Pagination](source-other-interviews/forte-live-coding-mock-plan.md#d10--pagination-15-min).
+</details>
+
+---
+
+**MC51.** Two sessions in `SNAPSHOT` isolation read the same tee time; session 1 updates it and commits; then session 2 updates the same row. What happens to session 2?
+
+A) Its update silently overwrites session 1's change
+B) It waits forever
+C) It fails with an update conflict (error 3960) and its transaction is rolled back
+D) It reads dirty data
+
+<details><summary>Show answer</summary>
+
+**C)** — `SNAPSHOT` detects that the row changed after session 2's transaction started and stops the lost update. Under RCSI there is no conflict error: the second update simply overwrites the first (a lost update). See [D8 — Isolation levels](source-other-interviews/forte-live-coding-mock-plan.md#d8--isolation-levels--blocking-25-min).
+</details>
+
+### Dates and Numeric Traps
+
+**MC52.** `SELECT SYSUTCDATETIME() AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago';` in SQL Server:
+
+A) Converts to Chicago time, including DST
+B) Fails, because `AT TIME ZONE` expects **Windows** time zone names (e.g. `'Central Standard Time'`) from `sys.time_zone_info`
+C) Returns the value unchanged
+D) Works only on Azure SQL
+
+<details><summary>Show answer</summary>
+
+**B)** — the booking schema stores IANA names like `America/Chicago`, so you need a mapping table to Windows names (or do the conversion in the application). With the Windows name, `AT TIME ZONE` does handle DST. See [D1](source-other-interviews/forte-live-coding-mock-plan.md#d1--joins--aggregation-15-min--warm-up).
+</details>
+
+---
+
+**MC53.** `BookedPlayers` and `Capacity` are integer columns with sums 7 and 10. What does `SELECT SUM(BookedPlayers) / SUM(Capacity)` return?
+
+A) `0.7`
+B) `0`
+C) `1`
+D) An error
+
+<details><summary>Show answer</summary>
+
+**B) `0`** — integer divided by integer is integer division in T-SQL. Use `100.0 * SUM(BookedPlayers) / SUM(Capacity)` or cast one side to `DECIMAL`. Also guard against dividing by zero with `NULLIF(SUM(Capacity), 0)`. See [D1](source-other-interviews/forte-live-coding-mock-plan.md#d1--joins--aggregation-15-min--warm-up).
 </details>
