@@ -8,7 +8,9 @@ to practice on your own before reading the answers.
 
 ## How to use this repo
 
-1. Open [mock-interview-questions.md](mock-interview-questions.md).
+1. Open [mock-interview-questions.md](mock-interview-questions.md) for short concept Q&A
+   and a multiple-choice quiz, or [mock-interview-practical-scenarios.md](mock-interview-practical-scenarios.md)
+   for full coding exercises with a suggested time and difficulty per exercise.
 2. Pick a difficulty level (🟢 Easy → 🟡 Medium → 🔴 Hard) or a topic.
 3. Answer the question **out loud or on paper first**, as if you were in the interview.
    For query questions, write the SQL before checking anything.
@@ -25,7 +27,8 @@ to practice on your own before reading the answers.
 ```
 sql-server-tsql-study/
 ├── README.md                       ← you are here
-├── mock-interview-questions.md     ← practice questions (no answers, links to sources)
+├── mock-interview-questions.md     ← concept Q&A + multiple-choice quiz (no answers, links to sources)
+├── mock-interview-practical-scenarios.md  ← full coding exercises with time/difficulty (no answers)
 └── source-database/                ← the answer sources: concept guides + exercises
     ├── 186-pattern-matching-like.md
     ├── sql-180-common-records-two-tables.md
