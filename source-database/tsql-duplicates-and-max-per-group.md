@@ -257,6 +257,69 @@ JOIN Sales s ON s.CustomerID = cc.CustomerID AND s.Amount = mt.MaxAmount;
 ```
 Note: if two transactions tie for the max amount, this version returns both rows.
 
+### Alternative: my own version (explicit `MAX` window)
+
+Same idea as solution B, but `MaxAmount` comes from its own `MAX(Amount) OVER (...)` instead of
+reusing `Amount` from the `RowNum = 1` row. It also uses `CustomerID` in every partition and names
+the final columns.
+
+```sql
+WITH cte_overview AS
+(
+    SELECT  CustomerID,
+            CustomerName,
+            TransactionDate,
+            COUNT(*)    OVER (PARTITION BY CustomerID) AS TotalTransactions,
+            MAX(Amount) OVER (PARTITION BY CustomerID) AS MaxAmount,
+            ROW_NUMBER() OVER (PARTITION BY CustomerID ORDER BY Amount DESC) AS RowNum
+    FROM dbo.Sales
+)
+SELECT  CustomerID,
+        CustomerName,
+        TotalTransactions,
+        MaxAmount,
+        TransactionDate AS MaxTransactionDate
+FROM cte_overview
+WHERE TotalTransactions > 1
+  AND RowNum = 1
+ORDER BY CustomerID;
+```
+
+**Pros**
+- **Self-explaining:** `MaxAmount` says what it is. You don't need to remember that `Amount`
+  on the `RowNum = 1` row happens to be the max, so it's harder to break by accident later
+  (for example if someone changes the `ROW_NUMBER` order).
+- **Cheap:** `COUNT`, `MAX` and `ROW_NUMBER` all use `PARTITION BY CustomerID`, so SQL Server
+  sorts by `CustomerID` **once** and computes all three in the same pass. The extra `MAX` only
+  adds a little CPU per row.
+- **Correct key:** partitioning by `CustomerID` (not `CustomerName`) keeps two customers with the
+  same name apart.
+- **Matches the expected output:** explicit column list, `MaxTransactionDate` alias, `ORDER BY`.
+
+**Cons**
+- **One more window aggregate** than solution B, which reuses `Amount AS MaxAmount`. It doesn't
+  matter on small tables; on millions of rows it is still minor compared to the sort.
+- **Window Spool in row mode:** `COUNT(*) OVER` and `MAX() OVER` (no `ORDER BY` inside `OVER`)
+  write rows to a worktable in tempdb (you can see `Worktable` reads in `SET STATISTICS IO`).
+  On SQL Server 2019+ with large data, batch mode's Window Aggregate operator avoids this.
+- **Ties:** `ROW_NUMBER` picks one row when two transactions share the max amount, and which one
+  can change between runs. Add a tie-breaker (`ORDER BY Amount DESC, TransactionDate DESC`) for a
+  stable result, or use `RANK()` to return every tied row.
+- **No early filter:** every row is numbered and counted before `TotalTransactions > 1` removes
+  single-purchase customers. A `GROUP BY ... HAVING` step first can be cheaper when most customers
+  have only one purchase.
+
+**Performance tip:** an index that already returns rows in partition order removes the sort:
+
+```sql
+CREATE INDEX IX_Sales_Customer_Amount
+ON dbo.Sales (CustomerID, Amount DESC)
+INCLUDE (CustomerName, TransactionDate);
+```
+
+Keep every `OVER (...)` on the same `PARTITION BY` / `ORDER BY`. Mixing `CustomerID` and
+`CustomerName` partitions forces a **second sort**, which costs far more than the extra `MAX`.
+
 ---
 
 ## 4. Exercise 2: Employee Logins
