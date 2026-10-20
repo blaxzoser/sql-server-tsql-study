@@ -325,7 +325,7 @@ Keep every `OVER (...)` on the same `PARTITION BY` / `ORDER BY`. Mixing `Custome
 ## 4. Exercise 2: Employee Logins
 
 ### Scenario
-An `EmployeeLogins` table tracks logins. Return employees who logged in more than once, with total logins, earliest login time, latest login time, and the date of their first login.
+An `EmployeeLogins` table tracks logins. Return employees who logged in more than once, with total logins, the time of their **first** login, the time of their **last** login, and the date of their first login. "First" and "last" are in time order (date, then time).
 
 ### Schema and sample data
 ```sql
@@ -356,7 +356,17 @@ INSERT INTO EmployeeLogins VALUES
 | 502 | Mike Johnson | Sales | 2 | 09:00:00 | 08:15:00 | 2024-12-15 |
 | 503 | Lisa Wong    | HR    | 2 | 08:45:00 | 10:00:00 | 2024-12-15 |
 
-> **Caveat worth knowing:** `MIN(LoginTime)` / `MAX(LoginTime)` look at the **time-of-day** only, ignoring the date. That is why Mike Johnson shows FirstLoginTime 09:00 and LastLoginTime 08:15 (his 08:15 login was the next day). If the question meant "the time of the chronologically first / last login", you would combine date and time (for example `CAST(LoginDate AS DATETIME) + CAST(LoginTime AS DATETIME)`) or use `ROW_NUMBER()` ordered by date then time, ascending and descending. In an interview, clarify which meaning is wanted.
+> **The trap in this exercise (Mike Johnson):** his first login is 2024-12-15 at **09:00** and his last
+> login is 2024-12-16 at **08:15**. So `LastLoginTime` is *earlier in the day* than `FirstLoginTime`.
+>
+> `MIN(LoginTime)` / `MAX(LoginTime)` **don't** give that. They only compare the time of day and
+> ignore the date, so they return Mike `08:15 / 09:00`: the wrong way round. To get the time of
+> the first / last login you must order by **date, then time**:
+> - `TOP (1) ... ORDER BY LoginDate, LoginTime` (ASC for first, DESC for last), or
+> - `FIRST_VALUE(LoginTime) OVER (... ORDER BY LoginDate, LoginTime)` (ASC for first, DESC for last).
+>
+> Sarah Chen and Lisa Wong give the same answer both ways, so only Mike shows the bug. In an
+> interview, say this out loud: "Do you mean the earliest time of day, or the time of the first login?"
 
 ### Your GROUP BY attempt and the fixes
 ```sql
@@ -366,68 +376,74 @@ INSERT INTO EmployeeLogins VALUES
  ORDER BY ASC)                           -- ERROR 2: ORDER BY needs a column name
 ```
 
-### Final solution A: GROUP BY + correlated subquery (your fixed version)
+### Final solution A: GROUP BY + correlated subquery
 ```sql
 SELECT
-    EmployeeID,
-    EmployeeName,
-    Department,
-    COUNT(*)       AS TotalLogins,
-    MIN(LoginTime) AS FirstLoginTime,
-    MAX(LoginTime) AS LastLoginTime,
+    e.EmployeeID,
+    e.EmployeeName,
+    e.Department,
+    COUNT(*)         AS TotalLogins,
     (
-        SELECT TOP(1) LoginDate
-        FROM EmployeeLogins b
-        WHERE b.EmployeeID = e.EmployeeID
-        ORDER BY LoginDate ASC
-    ) AS FirstLoginDate
+        SELECT TOP (1) f.LoginTime
+        FROM   EmployeeLogins f
+        WHERE  f.EmployeeID = e.EmployeeID
+        ORDER BY f.LoginDate ASC, f.LoginTime ASC      -- oldest login first
+    )                AS FirstLoginTime,
+    (
+        SELECT TOP (1) l.LoginTime
+        FROM   EmployeeLogins l
+        WHERE  l.EmployeeID = e.EmployeeID
+        ORDER BY l.LoginDate DESC, l.LoginTime DESC    -- newest login first
+    )                AS LastLoginTime,
+    MIN(e.LoginDate) AS FirstLoginDate                 -- the earliest date is just MIN
 FROM EmployeeLogins e
-GROUP BY EmployeeID, EmployeeName, Department
-HAVING COUNT(*) > 1;
+GROUP BY e.EmployeeID, e.EmployeeName, e.Department
+HAVING COUNT(*) > 1
+ORDER BY e.EmployeeID;
 ```
+`FirstLoginDate` doesn't need a subquery: `MIN(LoginDate)` is the date of the first login.
 
-### Your PARTITION BY attempt and what was wrong
-```sql
-WITH subTable AS (
-    SELECT EmployeeID, EmployeeName, Department,
-           COUNT(*) OVER (PARTITION BY EmployeeID, EmployeeName, Department) AS TotalLogins,
-           ROW_NUMBER() OVER (PARTITION BY EmployeeID ORDER BY LoginDate ASC) RowNum,
-           MIN(LoginTime) AS FirstLoginTime,     -- ISSUE 1: plain aggregate mixed with window functions, no GROUP BY
-           MAX(LoginTime) AS LastLoginTime       -- ISSUE 1
-    FROM EmployeeLogins e
-)
-SELECT EmployeeID, EmployeeName, Department,     -- ISSUE 2: trailing comma, missing columns
-FROM subTable
-WHERE RowNum = 1 AND TotalLogins > 1
-```
-Lessons:
-- Plain aggregates (`MIN()`) need `GROUP BY`; window versions (`MIN() OVER (...)`) do not. Do not mix them in the same SELECT.
+### Lessons for the window-function version
+- Plain aggregates (`MIN()`) need `GROUP BY`; window versions (`MIN() OVER (...)`) don't. Don't mix them in the same `SELECT`.
 - Any column used in the outer query (`LoginDate`, `LoginTime`) must be selected inside the CTE.
-- `PARTITION BY EmployeeID` is enough; you do not need to partition by every column.
+- `PARTITION BY EmployeeID` is enough; you don't need to partition by every column.
 
-### Final solution B: CTE + window functions (your fixed version)
+### Final solution B: CTE + window functions
 ```sql
-WITH subTable AS (
+WITH cteLogins AS (
     SELECT
         EmployeeID,
         EmployeeName,
         Department,
-        LoginTime,
         LoginDate,
-        COUNT(*)       OVER (PARTITION BY EmployeeID)                     AS TotalLogins,
-        ROW_NUMBER()   OVER (PARTITION BY EmployeeID ORDER BY LoginDate ASC, LoginTime ASC) AS RowNum,
-        MIN(LoginTime) OVER (PARTITION BY EmployeeID)                     AS FirstLoginTime,
-        MAX(LoginTime) OVER (PARTITION BY EmployeeID)                     AS LastLoginTime
+        COUNT(*) OVER (PARTITION BY EmployeeID) AS TotalLogins,
+        FIRST_VALUE(LoginTime) OVER (PARTITION BY EmployeeID ORDER BY LoginDate ASC,  LoginTime ASC)  AS FirstLoginTime,
+        FIRST_VALUE(LoginTime) OVER (PARTITION BY EmployeeID ORDER BY LoginDate DESC, LoginTime DESC) AS LastLoginTime,
+        ROW_NUMBER()           OVER (PARTITION BY EmployeeID ORDER BY LoginDate ASC,  LoginTime ASC)  AS RowNum
     FROM EmployeeLogins
 )
 SELECT
-    EmployeeID, EmployeeName, Department,
-    TotalLogins, FirstLoginTime, LastLoginTime,
+    EmployeeID,
+    EmployeeName,
+    Department,
+    TotalLogins,
+    FirstLoginTime,
+    LastLoginTime,
     LoginDate AS FirstLoginDate
-FROM subTable
-WHERE RowNum = 1 AND TotalLogins > 1;
+FROM cteLogins
+WHERE RowNum = 1          -- the first login row
+  AND TotalLogins > 1     -- duplicates only
+ORDER BY EmployeeID;
 ```
-(Adding `LoginTime ASC` as a tie-breaker makes `RowNum` deterministic when several logins share the same date, as Sarah Chen's do.)
+Notes:
+- **Last login = first login in reverse order.** `FIRST_VALUE` with `DESC` gives the last login.
+  Avoid `LAST_VALUE`: with an `ORDER BY`, its default frame stops at the current row, so it needs
+  `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` to work.
+- **Don't put `ORDER BY` inside `MIN() OVER` / `MAX() OVER`** here. It turns them into running
+  values (only the rows up to the current one), which is a different bug.
+- `LoginTime ASC` is the tie-breaker for `RowNum`, because Sarah Chen has 3 logins on the same date.
+
+Both solutions were run on SQL Server and return exactly the expected output above.
 
 ---
 

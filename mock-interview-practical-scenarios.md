@@ -122,7 +122,8 @@ Alice Brown is not in the result (only 1 transaction).
 🟡 Medium · 15 min
 
 **Task:** An `EmployeeLogins` table tracks logins. Return employees who logged in more than once,
-with total logins, earliest login time, latest login time, and the date of their first login.
+with total logins, the time of their **first** login, the time of their **last** login, and the
+date of their first login. "First" and "last" are in time order (date, then time).
 
 **Schema and sample data**
 
@@ -155,9 +156,9 @@ INSERT INTO EmployeeLogins VALUES
 | 502 | Mike Johnson | Sales | 2 | 09:00:00 | 08:15:00 | 2024-12-15 |
 | 503 | Lisa Wong    | HR    | 2 | 08:45:00 | 10:00:00 | 2024-12-15 |
 
-Tom Brown is not in the result (only 1 login). Note Mike Johnson: here "earliest/latest login
-time" means the **time of day** only, so his 08:15 login on the next day shows as the last time.
-Ask the interviewer which meaning they want.
+Tom Brown is not in the result (only 1 login). Watch Mike Johnson: his last login (2024-12-16)
+is at 08:15, earlier in the day than his first one (09:00). `MIN(LoginTime)` / `MAX(LoginTime)`
+would give him `08:15 / 09:00`, which is wrong: order by date, then time.
 
 [Answer](source-database/tsql-duplicates-and-max-per-group.md#4-exercise-2-employee-logins)
 

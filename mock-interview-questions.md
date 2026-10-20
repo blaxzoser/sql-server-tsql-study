@@ -229,7 +229,7 @@ Source: [tsql-duplicates-and-max-per-group.md](source-database/tsql-duplicates-a
 | Done | # | Level | Question | Answer |
 |---|---|---|---|---|
 | ⬜ | 6.10 | 🟡 | **Sales:** customers with more than one purchase, with total transactions, max amount, and the date of that max transaction. | [Answer](source-database/tsql-duplicates-and-max-per-group.md#3-exercise-1-sales-customers) |
-| ⬜ | 6.11 | 🟡 | **Employee logins:** employees who logged in more than once, with total logins, earliest and latest login time, and the date of the first login. | [Answer](source-database/tsql-duplicates-and-max-per-group.md#4-exercise-2-employee-logins) |
+| ⬜ | 6.11 | 🟡 | **Employee logins:** employees who logged in more than once, with total logins, the time of the first and of the last login (in date + time order), and the date of the first login. | [Answer](source-database/tsql-duplicates-and-max-per-group.md#4-exercise-2-employee-logins) |
 | ⬜ | 6.12 | 🟡 | **Product orders:** products ordered more than once, with total orders, highest quantity in one order, and the date of that order. | [Answer](source-database/tsql-duplicates-and-max-per-group.md#5-exercise-3-product-orders) |
 | ⬜ | 6.13 | 🔴 | **Page views:** returning users (more than one visit), with total visits, longest session (minutes), and the date of that session. | [Answer](source-database/tsql-duplicates-and-max-per-group.md#6-exercise-4-website-page-views) |
 | ⬜ | 6.14 | 🔴 | **Deliveries:** customers with more than one delivery, with total deliveries, heaviest package (kg), and the date of that delivery. | [Answer](source-database/tsql-duplicates-and-max-per-group.md#7-exercise-5-package-deliveries) |
