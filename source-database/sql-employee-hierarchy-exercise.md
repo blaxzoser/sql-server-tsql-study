@@ -273,28 +273,89 @@ SELECT * FROM Subordinates WHERE Level > 0;  -- Exclude Bob himself
 
 ### Variation 3: Count Direct and Total Reports
 
+**Idea:** build every (manager, subordinate) pair, at any depth. The anchor is each direct
+manager → employee link (depth 1). The recursive part **keeps the same manager** and walks one
+level further down. Then count the pairs per manager.
+
+```sql
+WITH Reports AS (
+    -- Anchor: every direct manager -> employee pair (depth 1)
+    SELECT ManagerID, EmployeeID, 1 AS Depth
+    FROM Employees
+    WHERE ManagerID IS NOT NULL
+
+    UNION ALL
+
+    -- Recursive: keep the same manager, walk one level further down
+    SELECT r.ManagerID, e.EmployeeID, r.Depth + 1
+    FROM Reports r
+    JOIN Employees e ON e.ManagerID = r.EmployeeID
+)
+SELECT
+    m.EmployeeID,
+    m.Name,
+    COUNT(CASE WHEN r.Depth = 1 THEN 1 END) AS DirectReports,
+    COUNT(r.EmployeeID)                     AS TotalReports
+FROM Employees m
+LEFT JOIN Reports r ON r.ManagerID = m.EmployeeID   -- LEFT JOIN keeps people with no reports (0)
+GROUP BY m.EmployeeID, m.Name
+ORDER BY m.EmployeeID;
+```
+
+**Output:**
+| EmployeeID | Name  | DirectReports | TotalReports |
+|------------|-------|---------------|--------------|
+| 1          | Alice | 2             | 6            |
+| 2          | Bob   | 2             | 3            |
+| 3          | Carol | 1             | 1            |
+| 4          | David | 1             | 1            |
+| 5          | Eve   | 0             | 0            |
+| 6          | Frank | 0             | 0            |
+| 7          | Grace | 0             | 0            |
+
+The `Reports` CTE for Bob (`ManagerID = 2`) holds: David (depth 1), Eve (depth 1), Grace (depth 2)
+→ 2 direct, 3 total.
+
+**Alternative: path version.** Build a path of **IDs with delimiters** (`/1/2/4/`), then everyone
+whose path starts with a manager's path is in that manager's subtree:
+
 ```sql
 WITH EmployeeHierarchy AS (
-    SELECT EmployeeID, Name, ManagerID, 0 AS Level
+    SELECT EmployeeID, Name, 0 AS Level,
+           CAST('/' + CAST(EmployeeID AS VARCHAR(10)) + '/' AS VARCHAR(900)) AS Path
     FROM Employees
     WHERE ManagerID IS NULL
-    
+
     UNION ALL
-    
-    SELECT e.EmployeeID, e.Name, e.ManagerID, eh.Level + 1
+
+    SELECT e.EmployeeID, e.Name, eh.Level + 1,
+           CAST(eh.Path + CAST(e.EmployeeID AS VARCHAR(10)) + '/' AS VARCHAR(900))
     FROM Employees e
     JOIN EmployeeHierarchy eh ON e.ManagerID = eh.EmployeeID
 )
-SELECT 
-    e.EmployeeID,
-    e.Name,
-    COUNT(CASE WHEN eh.Level = e.Level + 1 THEN 1 END) AS DirectReports,
-    COUNT(*) - 1 AS TotalSubordinates  -- -1 to exclude self
-FROM EmployeeHierarchy e
-LEFT JOIN EmployeeHierarchy eh ON eh.Path LIKE e.Path + '%'
-GROUP BY e.EmployeeID, e.Name, e.Level
-ORDER BY e.Level;
+SELECT
+    m.EmployeeID,
+    m.Name,
+    COUNT(CASE WHEN s.Level = m.Level + 1 THEN 1 END) AS DirectReports,
+    COUNT(s.EmployeeID)                               AS TotalReports
+FROM EmployeeHierarchy m
+LEFT JOIN EmployeeHierarchy s
+       ON s.Path LIKE m.Path + '%'          -- s is in m's subtree
+      AND s.EmployeeID <> m.EmployeeID      -- but isn't m itself
+GROUP BY m.EmployeeID, m.Name, m.Level
+ORDER BY m.EmployeeID;
 ```
+
+Why IDs and delimiters, not names: with a name path, `'Alice → Ann%'` would also match
+`'Alice → Anna'`, so Anna would be counted as Ann's report. With IDs and a closing `/`,
+`'/1/2/%'` can't match `'/1/23/'`.
+
+| Version | Pros | Cons |
+|---|---|---|
+| Manager/subordinate pairs | No strings; simple joins; easy to read | Builds one row per pair (big for deep, wide trees) |
+| ID path + `LIKE` | One hierarchy CTE, also gives you the path | String building, `LIKE` self-join is slow on large tables |
+
+Both versions were run on SQL Server and return the output above.
 
 ---
 
