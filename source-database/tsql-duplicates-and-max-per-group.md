@@ -542,7 +542,8 @@ SELECT
     ) AS MaxQuantityOrderDate
 FROM Orders o
 GROUP BY ProductID, ProductName
-HAVING COUNT(*) > 1;
+HAVING COUNT(*) > 1
+ORDER BY ProductID;
 ```
 
 ---
@@ -634,7 +635,8 @@ SELECT
     VisitDate AS LongestSessionDate
 FROM cteResult
 WHERE RowNum = 1
-  AND TotalVisits > 1;
+  AND TotalVisits > 1
+ORDER BY UserID;
 ```
 
 ### Reference solution A: GROUP BY + correlated subquery
@@ -652,7 +654,8 @@ SELECT
     ) AS LongestSessionDate
 FROM PageViews p
 GROUP BY UserID, UserName
-HAVING COUNT(*) > 1;
+HAVING COUNT(*) > 1
+ORDER BY UserID;
 ```
 
 ---
@@ -712,7 +715,8 @@ SELECT
     DeliveryDate AS HeaviestPackageDate
 FROM cteResult
 WHERE TotalDeliveries > 1
-  AND ROW_NUMBER_HeaviestPackageDate = 1;
+  AND ROW_NUMBER_HeaviestPackageDate = 1
+ORDER BY CustomerID;
 ```
 
 ### Your solution A: GROUP BY + correlated subquery (correct)
@@ -730,7 +734,8 @@ SELECT
     ) AS HeaviestPackageDate
 FROM Deliveries d
 GROUP BY CustomerID, CustomerName
-HAVING COUNT(*) > 1;
+HAVING COUNT(*) > 1
+ORDER BY CustomerID;
 ```
 Style tip: write `ORDER BY s.PackageWeight DESC` (prefix with the alias) for clarity. Inside the subquery an unqualified column resolves to the inner table, so it works as-is.
 
