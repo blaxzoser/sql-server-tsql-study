@@ -228,7 +228,7 @@ WITH EmployeeHierarchy AS (
         Name, 
         ManagerID, 
         0 AS Level,
-        CAST(Name AS VARCHAR(500)) AS Path
+        CAST(Name AS NVARCHAR(500)) AS Path
     FROM Employees
     WHERE ManagerID IS NULL
     
@@ -239,19 +239,32 @@ WITH EmployeeHierarchy AS (
         e.Name, 
         e.ManagerID, 
         eh.Level + 1,
-        CAST(eh.Path + ' → ' + e.Name AS VARCHAR(500))
+        CAST(eh.Path + N' → ' + e.Name AS NVARCHAR(500))
     FROM Employees e
     JOIN EmployeeHierarchy eh ON e.ManagerID = eh.EmployeeID
 )
-SELECT * FROM EmployeeHierarchy ORDER BY Level, EmployeeID;
+SELECT EmployeeID, Name, Level, Path
+FROM EmployeeHierarchy
+ORDER BY Level, EmployeeID;
 ```
 
-**Output includes:**
-| Name  | Path                          |
-|-------|-------------------------------|
-| Alice | Alice                         |
-| Bob   | Alice → Bob                   |
-| Grace | Alice → Bob → David → Grace   |
+**Output:**
+| EmployeeID | Name  | Level | Path                        |
+|------------|-------|-------|-----------------------------|
+| 1          | Alice | 0     | Alice                       |
+| 2          | Bob   | 1     | Alice → Bob                 |
+| 3          | Carol | 1     | Alice → Carol               |
+| 4          | David | 2     | Alice → Bob → David         |
+| 5          | Eve   | 2     | Alice → Bob → Eve           |
+| 6          | Frank | 2     | Alice → Carol → Frank       |
+| 7          | Grace | 3     | Alice → Bob → David → Grace |
+
+Two things to get right:
+- **Use `NVARCHAR` and `N' → '`.** `→` isn't in most `VARCHAR` code pages, so with `VARCHAR` it is
+  stored as `?` (`Alice ? Bob`). Use `NVARCHAR`, or a plain ASCII separator such as `' > '`.
+- **Cast to the same type and length in both parts.** The anchor and the recursive member must
+  return exactly the same data type for `Path`, or SQL Server raises "Types don't match between
+  the anchor and the recursive part".
 
 ### Variation 2: Find All Subordinates of a Specific Manager
 
