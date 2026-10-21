@@ -315,7 +315,7 @@ GROUP BY m.EmployeeID, m.Name
 ORDER BY m.EmployeeID;
 ```
 
-**Output:**
+**Output (sample data, 7 employees):**
 | EmployeeID | Name  | DirectReports | TotalReports |
 |------------|-------|---------------|--------------|
 | 1          | Alice | 2             | 6            |
@@ -328,6 +328,19 @@ ORDER BY m.EmployeeID;
 
 The `Reports` CTE for Bob (`ManagerID = 2`) holds: David (depth 1), Eve (depth 1), Grace (depth 2)
 → 2 direct, 3 total.
+
+**Output after the Scenario 1 and 2 inserts** (a second root Henry with report Ivy, and the orphan
+Jack whose manager 99 doesn't exist): the 7 rows above, plus:
+
+| EmployeeID | Name  | DirectReports | TotalReports |
+|------------|-------|---------------|--------------|
+| 8          | Henry | 1             | 1            |
+| 9          | Ivy   | 0             | 0            |
+| 10         | Jack  | 0             | 0            |
+
+If you get more than 7 rows when you expect the sample output, you ran it after those inserts:
+re-run the setup script to reset the table. To list **managers only** (no 0 rows), add
+`HAVING COUNT(r.EmployeeID) > 0` after the `GROUP BY`.
 
 **Alternative: path version.** Build a path of **IDs with delimiters** (`/1/2/4/`), then everyone
 whose path starts with a manager's path is in that manager's subtree:
@@ -366,9 +379,11 @@ Why IDs and delimiters, not names: with a name path, `'Alice → Ann%'` would al
 | Version | Pros | Cons |
 |---|---|---|
 | Manager/subordinate pairs | No strings; simple joins; easy to read | Builds one row per pair (big for deep, wide trees) |
-| ID path + `LIKE` | One hierarchy CTE, also gives you the path | String building, `LIKE` self-join is slow on large tables |
+| ID path + `LIKE` | One hierarchy CTE, also gives you the path | String building, `LIKE` self-join is slow on large tables; **drops orphans** |
 
-Both versions were run on SQL Server and return the output above.
+Both versions were run on SQL Server and return the sample output above. After the Scenario 2
+insert they differ: the path version leaves **Jack out completely**, because an orphan is never
+reached from a root, so he gets no path. The pairs version keeps him with `0 / 0`.
 
 ---
 
