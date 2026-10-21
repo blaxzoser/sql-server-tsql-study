@@ -1,0 +1,92 @@
+{
+  "README.md": {
+    "mtime": 1792448426.8019269,
+    "seen": 1792616266.3455844,
+    "ast_hash": "543aa5120b45c99fa661b7f939fc1dab",
+    "semantic_hash": "543aa5120b45c99fa661b7f939fc1dab"
+  },
+  "mock-interview-practical-scenarios.md": {
+    "mtime": 1792458808.3149872,
+    "seen": 1792616266.345591,
+    "ast_hash": "88528eaa349e8a3c07635b41fa890e5b",
+    "semantic_hash": "88528eaa349e8a3c07635b41fa890e5b"
+  },
+  "mock-interview-questions.md": {
+    "mtime": 1792458808.7252886,
+    "seen": 1792616266.3455942,
+    "ast_hash": "4880c90389633e947f0bf8c156ffc1c7",
+    "semantic_hash": "4880c90389633e947f0bf8c156ffc1c7"
+  },
+  "source-database/186-pattern-matching-like.md": {
+    "mtime": 1792438621.4536068,
+    "seen": 1792616266.3455956,
+    "ast_hash": "f0c1bf9ef5be0e54797c7727a752e74f",
+    "semantic_hash": "f0c1bf9ef5be0e54797c7727a752e74f"
+  },
+  "source-database/sql-180-common-records-two-tables.md": {
+    "mtime": 1792438411.983013,
+    "seen": 1792616266.3455975,
+    "ast_hash": "58369185d23dea77f78197015129709d",
+    "semantic_hash": "58369185d23dea77f78197015129709d"
+  },
+  "source-database/sql-employee-hierarchy-exercise.md": {
+    "mtime": 1792564658.6269927,
+    "seen": 1792616266.3455987,
+    "ast_hash": "b9921698550ecc01a253975f2df2e099",
+    "semantic_hash": "b9921698550ecc01a253975f2df2e099"
+  },
+  "source-database/sql-server-query-optimization-guide.md": {
+    "mtime": 1792438422.396254,
+    "seen": 1792616266.3456004,
+    "ast_hash": "1905e8849d55f269e9821fb2764960ad",
+    "semantic_hash": "1905e8849d55f269e9821fb2764960ad"
+  },
+  "source-database/sql-subquery-types.md": {
+    "mtime": 1792438400.832156,
+    "seen": 1792616266.3456013,
+    "ast_hash": "39ee258b60668571b6609976f56acb0d",
+    "semantic_hash": "39ee258b60668571b6609976f56acb0d"
+  },
+  "source-database/sql_unpivoting_guide.md": {
+    "mtime": 1792438476.2898653,
+    "seen": 1792616266.3456025,
+    "ast_hash": "d7fd3f7a8b14e835e1e48a99b9f43477",
+    "semantic_hash": "d7fd3f7a8b14e835e1e48a99b9f43477"
+  },
+  "source-database/tsql-duplicates-and-max-per-group.md": {
+    "mtime": 1792551999.9978566,
+    "seen": 1792616266.345604,
+    "ast_hash": "5260183ac073748e77fa05d8ceba2fc0",
+    "semantic_hash": "5260183ac073748e77fa05d8ceba2fc0"
+  },
+  "source-database/tsql-local-vs-global-variables.md": {
+    "mtime": 1792438444.4990213,
+    "seen": 1792616266.3456051,
+    "ast_hash": "7c96a159760f1bfa980327588c0f0d03",
+    "semantic_hash": "7c96a159760f1bfa980327588c0f0d03"
+  },
+  "source-other-interviews/Forte Group Senior Full Stack .NET Engineer and AI Practitioner_ Interview Prep Guide (October 2026).md": {
+    "mtime": 1792449000.9445333,
+    "seen": 1792616266.3456063,
+    "ast_hash": "e9104f048c89f0e8dda90494f44265e8",
+    "semantic_hash": "e9104f048c89f0e8dda90494f44265e8"
+  },
+  "source-other-interviews/compass_artifact_wf-0055a257-9435-52f7-84fb-b947daeba96e_text_markdown.md": {
+    "mtime": 1792350201.4332438,
+    "seen": 1792616266.3456078,
+    "ast_hash": "e9104f048c89f0e8dda90494f44265e8",
+    "semantic_hash": "e9104f048c89f0e8dda90494f44265e8"
+  },
+  "source-other-interviews/forte-live-coding-mock-plan.md": {
+    "mtime": 1792449016.9089699,
+    "seen": 1792616266.345609,
+    "ast_hash": "426a657afbf5add8b09f4c27c131d2fb",
+    "semantic_hash": "426a657afbf5add8b09f4c27c131d2fb"
+  },
+  "source-database/tsql_cheatsheet_dark.pdf": {
+    "mtime": 1792438497.970707,
+    "seen": 1792616266.3456104,
+    "ast_hash": "bf364d8f75c39dbb9064c02804afe10b",
+    "semantic_hash": "bf364d8f75c39dbb9064c02804afe10b"
+  }
+}
