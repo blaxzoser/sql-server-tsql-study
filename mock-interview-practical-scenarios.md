@@ -476,6 +476,8 @@ a common real-world data cleanup task.
 |---|---|---|---|
 | [P3.1](#p31--address-lines) | Address Lines | 🟡 Medium | 20 min |
 | [P3.2](#p32--contact-phone-numbers) | Contact Phone Numbers | 🟡 Medium | 20 min |
+| [P3.3](#p33--phone-numbers-with-cross-apply-values) | Phone Numbers with CROSS APPLY VALUES | 🔴 Hard | 10 min |
+| [P3.4](#p34--monthly-sales-import-with-cross-apply-values) | Monthly Sales Import with CROSS APPLY VALUES | 🔴 Hard | 15 min |
 
 ### P3.1 — Address Lines
 
@@ -566,9 +568,107 @@ INSERT INTO CustomerContacts VALUES
 
 [Answer](source-database/sql_unpivoting_guide.md#problem-2-contact-phone-numbers)
 
-**Harder variant (🔴 Hard, +10 min):** rewrite either P3.1 or P3.2 using
-`CROSS APPLY (VALUES ...)` instead of stacked `UNION ALL` blocks, and explain when you'd
-prefer one over the other. See [Alternative Approaches](source-database/sql_unpivoting_guide.md#alternative-approaches).
+**Harder variant:** this is now its own exercise, [P3.3](#p33--phone-numbers-with-cross-apply-values).
+
+### P3.3 — Phone Numbers with CROSS APPLY VALUES
+
+🔴 Hard · 10 min
+
+**Task:** Solve [P3.2](#p32--contact-phone-numbers) again, but read `CustomerContacts` only
+**once**: use `CROSS APPLY (VALUES ...)` instead of stacked `UNION ALL` blocks. Output the same
+columns as P3.2: `CustomerID`, `PhoneType` (`Home`/`Work`/`Mobile`/`Fax`), `PhoneNumber`,
+`CustomerName`, `Email`. Exclude `NULL` **or empty** phones and rows with a `NULL` `CustomerID`.
+This time also sort by `CustomerID`, then by phone type in the order Home → Work → Mobile → Fax
+(not alphabetical). Then explain in two or three sentences when you'd pick `UNION ALL`,
+`CROSS APPLY (VALUES ...)` or `UNPIVOT`.
+
+**Schema and sample data** *(the P3.2 table, with the two filter-test rows already added)*
+
+```sql
+CREATE TABLE CustomerContacts (
+    CustomerID INT NULL,
+    CustomerName VARCHAR(50),
+    Phone_Home VARCHAR(20),
+    Phone_Work VARCHAR(20),
+    Phone_Mobile VARCHAR(20),
+    Phone_Fax VARCHAR(20),
+    Email VARCHAR(100)
+);
+
+INSERT INTO CustomerContacts VALUES
+(101,  'John Smith',   '555-1234', NULL,       '555-5678', NULL,       'john@email.com'),
+(102,  'Jane Doe',     NULL,       '555-9999', '555-8888', '555-7777', 'jane@email.com'),
+(103,  'Empty Phones', '',         NULL,       '',         NULL,       'x@email.com'),
+(NULL, 'No Id',        '555-0000', NULL,       NULL,       NULL,       'y@email.com');
+```
+
+**Expected output** *(in this exact order)*
+
+| CustomerID | PhoneType | PhoneNumber | CustomerName | Email |
+|---|---|---|---|---|
+| 101 | Home   | 555-1234 | John Smith | john@email.com |
+| 101 | Mobile | 555-5678 | John Smith | john@email.com |
+| 102 | Work   | 555-9999 | Jane Doe   | jane@email.com |
+| 102 | Mobile | 555-8888 | Jane Doe   | jane@email.com |
+| 102 | Fax    | 555-7777 | Jane Doe   | jane@email.com |
+
+Customer 103 and the `NULL` `CustomerID` row are not in the result. **Check:** in the actual
+execution plan, `CustomerContacts` should be scanned once, not four times.
+
+[Answer](source-database/sql_unpivoting_guide.md#alternative-approaches)
+
+### P3.4 — Monthly Sales Import with CROSS APPLY VALUES
+
+🔴 Hard · 15 min
+
+**Task:** Sales reps send their monthly numbers in a spreadsheet, which is loaded into a staging
+table as-is: one row per rep, one **text** column per month (`Sales_Jan` to `Sales_Apr`). Blank
+cells arrive as `NULL`, `''` or spaces. Using `CROSS APPLY (VALUES ...)` (no `UNION ALL`, one
+read of the table), return one row per month that has a value:
+
+- `RepID`, `RepName`, `SalesMonth` (`Jan`/`Feb`/`Mar`/`Apr`), `SalesAmount` as `DECIMAL(10,2)`,
+  and `Status`.
+- `Status` is `'Met'` when `SalesAmount` is greater than or equal to that rep's own
+  `MonthlyTarget`, otherwise `'Missed'`.
+- Exclude blank months (`NULL`, `''` or spaces) and rows with a `NULL` `RepID`.
+- Sort by `RepID`, then by calendar month: Jan → Feb → Mar → Apr (not alphabetical).
+- The query must not fail on blank cells: `CAST('' AS DECIMAL(10,2))` raises a conversion error.
+
+**Schema and sample data**
+
+```sql
+CREATE TABLE SalesImport (
+    RepID INT NULL,
+    RepName VARCHAR(50),
+    MonthlyTarget DECIMAL(10,2),
+    Sales_Jan VARCHAR(20),
+    Sales_Feb VARCHAR(20),
+    Sales_Mar VARCHAR(20),
+    Sales_Apr VARCHAR(20)
+);
+
+INSERT INTO SalesImport VALUES
+(1,    'Ana Lopez',       1000.00, '1200.00', '950.00', NULL,     '1000.00'),
+(2,    'Ben Carter',       800.00, '',        '820.50', '790.00', '   '),
+(3,    'Cara Diaz',       1500.00, NULL,      NULL,     NULL,     NULL),
+(NULL, 'Temp Import Row',  500.00, '600.00',  NULL,     NULL,     NULL);
+```
+
+**Expected output** *(in this exact order)*
+
+| RepID | RepName | SalesMonth | SalesAmount | Status |
+|---|---|---|---|---|
+| 1 | Ana Lopez  | Jan | 1200.00 | Met    |
+| 1 | Ana Lopez  | Feb |  950.00 | Missed |
+| 1 | Ana Lopez  | Apr | 1000.00 | Met    |
+| 2 | Ben Carter | Feb |  820.50 | Met    |
+| 2 | Ben Carter | Mar |  790.00 | Missed |
+
+Ana's April equals her target, so it's `Met`. Cara has no months with a value, so she isn't in
+the result, and neither is the `NULL` `RepID` row. Ben's blank January (`''`) and April (spaces)
+are dropped.
+
+[Answer](source-database/sql_unpivoting_guide.md#alternative-approaches)
 
 ---
 
@@ -612,16 +712,74 @@ INSERT INTO scores VALUES
 (6, 3, 'Marco',  500);
 ```
 
+The same sample data as tables:
+
+| game_id | title | genre | price |
+|---|---|---|---|
+| 1 | Space Raiders | Shooter | 20.00 |
+| 2 | Dungeon Quest | RPG     | 40.00 |
+| 3 | Pixel Kart    | Racing  | 15.00 |
+| 4 | Star Siege    | Shooter | 35.00 |
+| 5 | Dragon Lore   | RPG     | 60.00 |
+| 6 | Turbo Drift   | Racing  | 25.00 |
+
+| score_id | game_id | player_name | points |
+|---|---|---|---|
+| 1 | 1 | Ana   | 1200 |
+| 2 | 1 | Luis  | 1500 |
+| 3 | 2 | Ana   |  800 |
+| 4 | 4 | Marco | 2000 |
+| 5 | 4 | Luis  | 2000 |
+| 6 | 3 | Marco |  500 |
+
 | # | Task | Difficulty | Time | Expected output | Answer |
 |---|---|---|---|---|---|
-| P4.1 | List the cheapest game(s) overall (`title`, `price`). | 🟢 Easy | 10 min | Pixel Kart, 15.00 | [Answer](source-database/sql-subquery-types.md#10-practice-exercises) |
-| P4.2 | List the titles of the games that Ana has played. | 🟢 Easy | 10 min | Space Raiders · Dungeon Quest | [Answer](source-database/sql-subquery-types.md#10-practice-exercises) |
-| P4.3 | List the cheapest game **in each genre** (`title`, `genre`, `price`). | 🟡 Medium | 15 min | Space Raiders, Shooter, 20.00 · Dungeon Quest, RPG, 40.00 · Pixel Kart, Racing, 15.00 | [Answer](source-database/sql-subquery-types.md#10-practice-exercises) |
-| P4.4 | List players who scored more than 1000 points in **any** game, each player once. | 🟡 Medium | 15 min | Ana · Luis · Marco | [Answer](source-database/sql-subquery-types.md#10-practice-exercises) |
-| P4.5 | List scores above the **average score for that same game** (`player_name`, `game_id`, `points`). | 🟡 Medium | 15 min | Luis, 1, 1500 | [Answer](source-database/sql-subquery-types.md#10-practice-exercises) |
-| P4.6 | List the titles of games that **nobody has played yet**. | 🟢 Easy | 10 min | Dragon Lore · Turbo Drift | [Answer](source-database/sql-subquery-types.md#example-3-games-nobody-has-played-yet-exists--not-exists) |
-| P4.7 | Rewrite P4.5 with a window function instead of a correlated subquery. | 🔴 Hard | 15 min | Same as P4.5: Luis, 1, 1500 | [Answer](source-database/sql-subquery-types.md#10-practice-exercises) |
-| P4.8 | Find the top scorer(s) for each game, returning **all** tied top scorers (`player_name`, `game_id`, `points`). | 🔴 Hard | 20 min | see table below | [Answer](source-database/sql-subquery-types.md#exactly-one-top-scorer-per-game-handles-ties) |
+| P4.1 | List the cheapest game(s) overall (`title`, `price`). | 🟢 Easy | 10 min | Pixel Kart, 15.00 | [Solution](#p41-solution) |
+| P4.2 | List the titles of the games that Ana has played. | 🟢 Easy | 10 min | Space Raiders · Dungeon Quest | [Solution](#p42-solution) |
+| P4.3 | List the cheapest game **in each genre** (`title`, `genre`, `price`). | 🟡 Medium | 15 min | 3 rows × 3 columns, see below | [Solution](#p43-solution) |
+| P4.4 | List players who scored more than 1000 points in **any** game, each player once. | 🟡 Medium | 15 min | 3 rows × 1 column, see below | [Solution](#p44-solution) |
+| P4.5 | List scores above the **average score for that same game** (`player_name`, `game_id`, `points`). | 🟡 Medium | 15 min | 1 row × 3 columns, see below | [Solution](#p45-solution) |
+| P4.6 | List the titles of games that **nobody has played yet**. | 🟢 Easy | 10 min | 2 rows × 1 column, see below | [Solution](#p46-solution) |
+| P4.7 | Rewrite P4.5 with a window function instead of a correlated subquery. | 🔴 Hard | 15 min | Same as P4.5: 1 row × 3 columns, see below | [Solution](#p47-solution) |
+| P4.8 | Find the top scorer(s) for each game, returning **all** tied top scorers (`player_name`, `game_id`, `points`). | 🔴 Hard | 20 min | see table below | [Solution](#p48-solution) |
+
+**P4.3 expected output** (3 rows × 3 columns):
+
+| title | genre | price |
+|---|---|---|
+| Space Raiders | Shooter | 20.00 |
+| Dungeon Quest | RPG     | 40.00 |
+| Pixel Kart    | Racing  | 15.00 |
+
+**P4.4 expected output** (3 rows × 1 column, each player once):
+
+| player_name |
+|---|
+| Ana   |
+| Luis  |
+| Marco |
+
+**P4.5 and P4.7 expected output** (1 row × 3 columns; P4.7 must return the same result):
+
+| player_name | game_id | points |
+|---|---|---|
+| Luis | 1 | 1500 |
+
+Why only one row: the average per game, and which scores are above it.
+
+| game_id | Scores | Average | Above average? |
+|---|---|---|---|
+| 1 | 1200 (Ana), 1500 (Luis) | 1350 | Luis 1500 ✅ · Ana 1200 ❌ |
+| 2 | 800 (Ana) | 800 | none (a single score equals the average) |
+| 3 | 500 (Marco) | 500 | none (a single score equals the average) |
+| 4 | 2000 (Marco), 2000 (Luis) | 2000 | none (equal is not above) |
+
+**P4.6 expected output** (2 rows × 1 column; games 5 and 6 never appear in `scores`):
+
+| title |
+|---|
+| Dragon Lore |
+| Turbo Drift |
 
 **P4.8 expected output** (game 4 has a tie, so it appears twice):
 
@@ -632,6 +790,124 @@ INSERT INTO scores VALUES
 | Marco | 3 | 500 |
 | Marco | 4 | 2000 |
 | Luis  | 4 | 2000 |
+
+### Section 4 solutions
+
+Try each problem first. Each solution is collapsed.
+
+#### P4.1 solution
+
+<details><summary>P4.1: Cheapest game(s) overall</summary>
+
+```sql
+SELECT title, price
+FROM games
+WHERE price = (SELECT MIN(price) FROM games);
+```
+
+Using `= MIN(price)` also returns every game that ties for the lowest price, which `TOP (1)` would miss.
+</details>
+
+#### P4.2 solution
+
+<details><summary>P4.2: Games Ana has played</summary>
+
+```sql
+SELECT title
+FROM games
+WHERE game_id IN (SELECT game_id FROM scores WHERE player_name = 'Ana');
+```
+
+The inner query returns Ana's `game_id` values (1 and 2); the outer query keeps the games with those ids.
+</details>
+
+#### P4.3 solution
+
+<details><summary>P4.3: Cheapest game in each genre</summary>
+
+```sql
+SELECT g.title, g.genre, g.price
+FROM games g
+WHERE g.price = (SELECT MIN(g2.price)
+                 FROM games g2
+                 WHERE g2.genre = g.genre);
+```
+
+Correlated: for each row `g`, the inner query finds the minimum price among games of the **same genre** (`g2.genre = g.genre`). Keep the row only when its price equals that minimum.
+</details>
+
+#### P4.4 solution
+
+<details><summary>P4.4: Players with more than 1000 points</summary>
+
+```sql
+SELECT DISTINCT player_name
+FROM scores
+WHERE points > 1000;
+```
+
+No subquery or `GROUP BY` needed. `DISTINCT` shows Luis once even though he has two qualifying scores.
+</details>
+
+#### P4.5 solution
+
+<details><summary>P4.5: Scores above the average for the same game</summary>
+
+```sql
+SELECT s.player_name, s.game_id, s.points
+FROM scores s
+WHERE s.points > (SELECT AVG(s2.points)
+                  FROM scores s2
+                  WHERE s2.game_id = s.game_id);
+```
+
+The inner query computes the average **of the same game** for every outer row, and the outer query compares the score to it. Games with one score, or tied scores, never have a score strictly above the average.
+</details>
+
+#### P4.6 solution
+
+<details><summary>P4.6: Games nobody has played</summary>
+
+```sql
+SELECT g.title
+FROM games g
+WHERE NOT EXISTS (SELECT 1
+                  FROM scores s
+                  WHERE s.game_id = g.game_id);
+```
+
+`NOT EXISTS` is safer than `NOT IN`: if `scores.game_id` ever contained a NULL, `NOT IN` would return no rows.
+</details>
+
+#### P4.7 solution
+
+<details><summary>P4.7: P4.5 with a window function</summary>
+
+```sql
+SELECT player_name, game_id, points
+FROM (SELECT player_name, game_id, points,
+             AVG(points) OVER (PARTITION BY game_id) AS game_avg
+      FROM scores) t
+WHERE points > game_avg;
+```
+
+The window function adds the game's average to every row, so no correlated subquery is needed. It has to sit in a derived table because `WHERE` can't use a window function directly.
+</details>
+
+#### P4.8 solution
+
+<details><summary>P4.8: Top scorer(s) for each game, including ties</summary>
+
+```sql
+SELECT s.player_name, s.game_id, s.points
+FROM scores s
+WHERE s.points = (SELECT MAX(s2.points)
+                  FROM scores s2
+                  WHERE s2.game_id = s.game_id);
+```
+
+Ties are kept because every row equal to the maximum passes (game 4: Marco and Luis). Window alternative: `RANK() OVER (PARTITION BY game_id ORDER BY points DESC)` and keep `= 1`. `ROW_NUMBER()` would drop one of the tied players.
+</details>
 
 ---
 
